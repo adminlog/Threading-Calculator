@@ -1,0 +1,291 @@
+<!--
+MIT License
+
+Copyright (c) 2019 Anthony Reimche
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+	<meta charset="utf-8">
+	<title></title>
+	<style>
+	  body{background-color:#EEEEEE;}
+	  div{
+		font-family:courier;
+		  text-align: center;
+	  }
+	  button{
+		font-family:courier;
+		background-color: #555555;
+		border: none;
+		color: white;
+		padding: 15px 32px;
+		text-align: center;
+		text-decoration: none;
+		display: inline-block;
+		font-size: 16px;
+	  }
+	</style>
+  </head>
+  <body>
+	  <!--<a href="https://adminlog.github.io/CNC-Lathe-Grooving-Point-calculator/GroovingCalculator%20v3.5_zh.html" style="text-align: right; margin-right: 30px; margin-top: 50px; font-family: sans">中文</a>--!>
+	  <div>
+		<h1 style="margin-top:80px">FANUC CNC Lathe Threading Code Calculator</h1>
+		<h2 style="margin-top:30px">Created by Anthony Reimche<br>V1.1 beta</h2>
+		<p>Generates FANUC threading codes using G76.<br>Does NOT support 5-axis / rotary mill.<br><br>Copyright (c) 2019 Anthony Reimche</p>
+	</div>
+	<div style="margin-top:160px">
+	  <h2>Thread</h2>
+	  <p style="color: #808080">Description of the Thread.</p>
+	  <button onclick="SetThreadPitch()" id="NewThreadPitch">Pitch = 2mm</button>
+	  <br><br>
+	  <button onclick="SetThreadAngle()" id="NewThreadAngle">Thread Angle = 60°</button>
+	  <br><br>
+	  <button onclick="SetThreadLength()" id="NewThreadLength">Thread Length = 14mm</button>
+	  <br><br>
+	  <button onclick="SetThreadTaper()" id="NewThreadTaper">Thread Taper = 0°</button>
+	  <br><br>
+	  <button onclick="SetThreadNum()" id="NewThreadNum">Threads = 1N</button>
+	  <br><br>
+	  <button onclick="SetThreadFinish()" id="NewThreadFinish">Thread Finish = 1 time</button>
+	  <br><br>
+	  <button onclick="SetThreadPullout()" id="NewThreadPullout">Thread Gradual Pullout = 1 x Pitch</button>
+	  <br><br>
+	  <button onclick="SetInitPos()" id="NewInitPos">Position of thread top left corner = M30 Z0</button>
+	  <br><br>
+	  <h2>Safety</h2>
+	  <p style="color: #CC8080">Don't change these if you don't know what they mean.</p>
+	  <button onclick="SetSettingsSafetyX()" id="NewSettingsSafetyX">Safety X Height = 5mm</button>
+	  <br><br>
+	  <button onclick="SetSettingsRPM()" id="NewSettingsRPM">Spindle Speed = 1380RPM</button>
+	  <br><br>
+	  <button onclick="SetSettingsLeave()" id="NewSettingsLeave">Leave = 0.05mm</button>
+	  <br><br><br><br><br>
+	  <button onclick="Calculate()" id="Submit" style="background-color: #f44336">Calculate</button>
+	  <br><br><br><br>
+	  <p style="margin-top:30px" id="MajorDiameter"></p>
+	</div>
+	<div style="margin-top:50px; margin-bottom:200px; margin-left: 30%; text-align:left">
+	  <p style="margin-top:10px" id="Code"></p>
+	</div>
+	<script type="text/javascript">
+	  var Thread = {
+		Pitch:2,
+		Angle:60,
+		Length:14,
+		InitX:30,
+		InitZ:0,
+		Taper:0,
+		Finish:1,
+		Pullout:1,
+		Num:1,
+	  };
+	  var Settings = {
+		  SafetyX:5,
+		  RPM:1380,
+		  Leave:0.05,
+	  }
+		function Calculate(){
+		  var Pitch = Thread.Pitch;
+		  var Angle = -Thread.Angle;
+		  var Length = Thread.Length;
+		  var Taper = Thread.Taper;
+		  var Finish = Thread.Finish;
+		  var Pullout = Thread.Pullout * 10;
+		  var Leave = Settings.Leave;
+		  var Num = Thread.Num;
+
+		  var rad2deg = 180 / Math.PI;
+		  var deg2rad = Math.PI / 180;
+
+		  console.log("---------- Calculate() ----------");
+
+		  document.getElementById("Code").style.color = "black";
+		  document.getElementById("Code").innerHTML = "Generating code...";
+
+		  var MajorD = Thread.InitX;// FIX
+		  document.getElementById("MajorDiameter").innerHTML = "Major Diameter = " + MajorD;
+		  console.log("MajorDiameter = " + MajorD + "\nOutD = " + Thread.InitX + "\nLength = "+Length);
+
+		  var Feed = Pitch;
+		  var H = 0.6495 * Pitch;
+
+		  document.getElementById("Code").innerHTML = "Code:<br><br>";
+
+		  for (var i = 0; i < Num; i++) {
+			  document.getElementById("Code").innerHTML += "G0 X" + Convert2Gcode(Thread.InitX + Settings.SafetyX) + " Z" + Convert2Gcode(Thread.InitZ + Settings.SafetyX + (i * Pitch)) + "<br>G76 P";
+			  if(Finish < 10){
+				document.getElementById("Code").innerHTML += "0" + Finish;
+			  }else{
+				document.getElementById("Code").innerHTML += "" + Finish;
+			  }
+			  if(Pullout < 10){
+				document.getElementById("Code").innerHTML += "0" + Pullout;
+			  }else{
+				document.getElementById("Code").innerHTML += "" + Pullout;
+			  }
+			  if(Math.abs(Angle) < 10){
+				document.getElementById("Code").innerHTML += "0" + Math.abs(Angle);
+			  }else{
+				document.getElementById("Code").innerHTML += "" + Math.abs(Angle);
+			  }
+			  document.getElementById("Code").innerHTML += " Q050 R" + Settings.Leave + "<br>G76 X" + Convert2Gcode(Thread.InitX - (2 * H)) + " Z" + Convert2Gcode(Thread.InitZ - Length);
+			  if(Taper != 0){
+				document.getElementById("Code").innerHTML += " R" + Convert2Gcode(Math.atan(Taper) * Length);
+			  }
+			  document.getElementById("Code").innerHTML += " P" + Math.round(H * 1000) + " Q" + Math.round(H / Math.sqrt(10) * 1000) + " F" + Convert2Gcode(Feed * Num) + "<br>";
+			}
+		}
+		function SetThreadPitch(){
+			var Pitch = parseFloat(prompt("Thread Pitch (in mm, e.g. 30):",Thread.Pitch));
+			while(isNaN(Pitch)){
+				Pitch = parseFloat(prompt("Pitch must be a number:",Thread.Pitch));
+			}
+			if(Pitch != null){
+				Thread.Pitch = Pitch;
+				document.getElementById("NewThreadPitch").innerHTML = "Pitch = " + Thread.Pitch + "mm";
+			}
+		}
+		function SetThreadNum(){
+		  var Num = parseFloat(prompt("Number of Threads (an integer, e.g. 1):",Thread.Num));
+		  while(isNaN(Num)){
+			Num = parseFloat(prompt("Treads must be a number:",Thread.Num));
+		  }
+		  if(Num != null){
+			Thread.Num = Num;
+			document.getElementById("NewThreadNum").innerHTML = "Threads = " + Thread.Num + "N";
+		  }
+		}
+		function SetThreadAngle(){
+		  var Angle = parseFloat(prompt("Thread Angle (in degrees, e.g. 60):",Thread.Angle));
+		  while(isNaN(Angle)){
+			Angle = parseFloat(prompt("Angle must be a number:",Thread.Angle));
+		  }
+		  if(Angle != null){
+			Thread.Angle = Angle;
+			document.getElementById("NewThreadAngle").innerHTML = "Thread Angle = " + Thread.Angle + "°";
+		  }
+		}
+		function SetThreadLength(){
+		  var Length = parseFloat(prompt("Thread Length (in mm, e.g. 60):",Thread.Length));
+		  while(isNaN(Length)){
+			Length = parseFloat(prompt("Length must be a number:",Thread.Length));
+		  }
+		  if(Length != null){
+			Thread.Length = Length;
+			document.getElementById("NewThreadLength").innerHTML = "Thread Length = " + Thread.Length + "mm";
+		  }
+		}
+		function SetThreadTaper(){
+		  var Taper = parseFloat(prompt("Thread Taper (in degrees, e.g. 15):",Thread.Taper));
+		  while(isNaN(Taper)){
+			Taper = parseFloat(prompt("Taper must be a number:",Thread.Taper));
+		  }
+		  if(Taper != null){
+			Thread.Taper = Taper;
+			document.getElementById("NewThreadTaper").innerHTML = "Thread Taper = " + Thread.Taper + "°";
+		  }
+		}
+		function SetThreadFinish(){
+		  var Finish = parseFloat(prompt("Thread Finish (in mm, e.g. 60):",Thread.Finish));
+		  while(isNaN(Finish)){
+			Finish = parseFloat(prompt("Finish must be a number:",Thread.Finish));
+		  }
+		  if(Finish != null){
+			Thread.Finish = Finish;
+			if(Finish == 1){
+			  document.getElementById("NewThreadFinish").innerHTML = "Thread Finish = " + Thread.Finish + " time";
+			}else{
+			  document.getElementById("NewThreadFinish").innerHTML = "Thread Finish = " + Thread.Finish + " times";
+			}
+		  }
+		}
+		function SetThreadPullout(){
+		  var Pullout = parseFloat(prompt("Thread Gradual Pullout (in threads for every revolution, e.g. 1.5):",Thread.Pullout));
+		  while(isNaN(Pullout)){
+			Pullout = parseFloat(prompt("Gradual Pullout must be a number:",Thread.Pullout));
+		  }
+		  if(Pullout != null){
+			Thread.Pullout = Pullout;
+			document.getElementById("NewThreadPullout").innerHTML = "Thread Gradual Pullout = " + Thread.Pullout + " x Pitch";
+		  }
+		}
+		function SetSettingsSafetyX(){
+		  var safetyX = parseFloat(prompt("Safety X Height (in mm, e.g. 5).",Settings.SafetyX));
+		  while(isNaN(safetyX)){
+			safetyX = parseFloat(prompt("Width must be a number:",Settings.SafetyX));
+		  }
+		  if(safetyX != null){
+			Settings.SafetyX = safetyX;
+			document.getElementById("NewSettingsSafetyX").innerHTML = "Safety X Height = " + Settings.SafetyX + "mm";
+		  }
+		}
+		function SetSettingsLeave(){
+		  var leave = parseFloat(prompt("roughing offset to leave for finishing (in mm, e.g. 0.05).",Settings.Leave));
+		  while(isNaN(leave)){
+			leave = parseFloat(prompt("Leave must be a number:",Settings.Leave));
+		  }
+		  if(leave != null){
+			Settings.Leave = leave;
+			document.getElementById("NewSettingsLeave").innerHTML = "Leave = " + Settings.Leave + "mm";
+		  }
+		}
+		function SetSettingsRPM(){
+		  var RPM = parseFloat(prompt("Spindle Speed (in revolutions per minute, e.g. 1380).",Settings.RPM));
+		  while(isNaN(RPM)){
+			RPM = parseFloat(prompt("Spindle Speed must be a number:",Settings.RPM));
+		  }
+		  if(RPM != null){
+			Settings.RPM = RPM;
+			document.getElementById("NewSettingsRPM").innerHTML = "Spindle Speed = " + Settings.RPM + "RPM";
+		  }
+		}
+		function SetInitPos(){
+		  var initX = parseFloat(prompt("Thread Outer Diameter:",Thread.InitX));
+		  while(isNaN(initX)){
+			initX = parseFloat(prompt("Outer Diameter must be a number:",Thread.InitX));
+		  }
+		  var initZ = parseFloat(prompt("Z Position at top left corner of thread:",Thread.InitZ));
+		  while(isNaN(initZ)){
+			initZ = parseFloat(prompt("Position must be a number:",Thread.InitZ));
+		  }
+		  if(initX != null){
+			Thread.InitX = initX;
+		  }
+		  if(initZ != null){
+			Thread.InitZ = initZ;
+		  }
+		  if(Thread.InitX == 0 && Thread.InitZ == 0){
+			  document.getElementById("NewInitPos").innerHTML = "Position of thread top left corner = M" + Thread.InitX + " Z" + Thread.InitZ + " (Origin)";
+		  }else{
+			  document.getElementById("NewInitPos").innerHTML = "Position of thread top left corner = M" + Thread.InitX + " Z" + Thread.InitZ;
+		  }
+		}
+		function Convert2Gcode(rawNum){
+			if(rawNum % 1 == 0){
+				return (rawNum + ".");
+			}else{
+				return (Math.floor(rawNum * 1000) / 1000).toString();
+			}
+		}
+	</script>
+  </body>
+</html>
