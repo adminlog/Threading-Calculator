@@ -1,0 +1,441 @@
+<!--
+MIT License
+
+Copyright (c) 2019 Anthony Reimche
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+<!DOCTYPE html>
+<html lang="zh" dir="ltr">
+	<head>
+	<meta charset="utf-8">
+	<title></title>
+	<style>
+		body{background-color:#EEEEEE;}
+		div{
+		font-family:sans;
+			text-align: center;
+		}
+		button{
+		font-family:sans;
+		background-color: #555555;
+		border: none;
+		color: white;
+		padding: 15px 32px;
+		text-align: center;
+		text-decoration: none;
+		display: inline-block;
+		font-size: 16px;
+		}
+		#Code{
+			font-family:courier;
+		}
+	</style>
+	</head>
+	<body>
+		<a href="https://adminlog.github.io/Threading-Calculator/v1.5_en.html" style="text-align: right; margin-right: 30px; margin-top: 50px; font-family: sans" lang="en">English</a>
+		<div>
+			<h1 style="margin-top:80px"><span lang="en" style="font-family: courier">FANUC CNC </span>車床螺紋程式計算器</h1>
+			<h2 style="margin-top:30px">程式設計: 郭博淵<br>v1.6</h2>
+		<p>Generates FANUC threading codes using G76. Type negative thread length for left hand threads, using G32.<br>不支援五軸/車銑複合機台.<br><br>Copyright (c) 2019 Anthony Reimche</p>
+	</div>
+    <div>
+        <img src="" alt="Diagram">
+    </div>
+	<div style="margin-top:80px">
+		<h2>螺紋設定</h2>
+		<!--<p style="color: #808080">Description of the Thread.</p>--!>
+		<button onclick="SetThreadPitch()" id="NewThreadPitch">螺距 = 2mm</button>
+		<br><br>
+		<button onclick="SetThreadAngle()" id="NewThreadAngle">角度 = 60°</button>
+		<br><br>
+		<button onclick="SetThreadLength()" id="NewThreadLength">長度 = 14mm</button>
+		<br><br>
+		<button onclick="SetThreadTaper()" id="NewThreadTaper">錐度 = 0°</button>
+		<br><br>
+		<button onclick="SetThreadNum()" id="NewThreadNum">Threads = 1N</button>
+		<br><br>
+		<button onclick="SetThreadFinish()" id="NewThreadFinish">精修 = 1 次</button>
+		<br><br>
+		<button onclick="SetThreadPullout()" id="NewThreadPullout">退刀距離 = 1 x 螺距</button>
+		<br><br>
+		<button onclick="SetInitPos()" id="NewInitPos">螺紋座標 = M30 Z0</button>
+		<br><br>
+		<div id="OutToggleIn">
+			<button onclick="ToggleIn()">外螺紋</button>
+			<br><br>
+		</div>
+		<div id="InToggleOut" style="display:none">
+			<button onclick="ToggleOut()">內螺紋</button>
+			<br><br>
+		</div>
+		<h2>安全設定</h2>
+		<!--<p style="color: #CC8080">Don't change these if you don't know what they mean.</p>--!>
+		<button onclick="SetSettingsSafetyX()" id="NewSettingsSafetyX">安全高度 = 5mm</button>
+		<br><br>
+		<button onclick="SetSettingsTimes()" id="NewSettingsTimes">切削次數 = 10 次</button>
+		<br><br>
+		<button onclick="SetSettingsLeave()" id="NewSettingsLeave">預留量 = 0.05mm</button>
+		<br><br>
+		<button onclick="SetSettingsSpeed()" id="NewSettingsSpeed">切削速度 = 130m/min</button>
+		<br><br><br><br><br>
+		<button onclick="Calculate()" id="Submit" style="background-color: #f44336">計算</button>
+		<br><br><br><br>
+		<p style="margin-top:30px" id="MajorDiameter"></p>
+		<p style="margin-top:30px" id="CuttingSpeed"></p>
+	</div>
+	<div style="margin-top:50px; margin-bottom:200px; margin-left: 30%; text-align:left">
+		<p style="margin-top:10px" id="Code"></p>
+	</div>
+	<script type="text/javascript">
+		var Thread = {
+		Pitch:2,
+		Angle:60,
+		Length:14,
+		InitX:30,
+		InitZ:0,
+		Taper:0,
+		Finish:1,
+		Pullout:1,
+		Num:1,
+		Internal:false,
+		};
+		var Settings = {
+			SafetyX:5,
+			Times:10,
+			Leave:0.05,
+			Min:0.3,
+			Speed:130,
+		}
+		function Calculate(){
+			var Pitch = Thread.Pitch;
+			var Angle = -Thread.Angle;
+			var Length = Thread.Length;
+			var Taper = Thread.Taper;
+			var Finish = Thread.Finish;
+			var Pullout = Thread.Pullout * 10;
+			var Leave = Settings.Leave;
+			var Num = Thread.Num;
+
+			var rad2deg = 180 / Math.PI;
+			var deg2rad = Math.PI / 180;
+
+			console.log("---------- Calculate() ----------");
+
+			document.getElementById("Code").style.color = "black";
+			document.getElementById("Code").innerHTML = "Generating code...";
+
+			if(!Thread.Internal){
+				var MajorD = Thread.InitX;
+				document.getElementById("MajorDiameter").innerHTML = "螺紋外徑 = " + MajorD;
+				var RPM = Settings.Speed * 1000 / Math.PI / Thread.InitX;
+				document.getElementById("CuttingSpeed").innerHTML = "轉速 = " + Math.round(RPM) + "RPM";
+
+				var Feed = Pitch;
+				var H = 0.640327 * Pitch;
+
+				document.getElementById("Code").innerHTML = "程式:<br><br>";
+
+				if(Length > 0){
+					for (var i = 0; i < Num; i++) {
+						document.getElementById("Code").innerHTML += "G0 X" + Convert2Gcode(Thread.InitX + Settings.SafetyX) + " Z" + Convert2Gcode(Thread.InitZ + Settings.SafetyX + (i * Pitch)) + "<br>G76 P";
+						if(Finish < 10){
+						document.getElementById("Code").innerHTML += "0" + Finish;
+						}else{
+						document.getElementById("Code").innerHTML += "" + Finish;
+						}
+						if(Pullout < 10){
+						document.getElementById("Code").innerHTML += "0" + Pullout;
+						}else{
+						document.getElementById("Code").innerHTML += "" + Pullout;
+						}
+						if(Math.abs(Angle) < 10){
+							document.getElementById("Code").innerHTML += "0" + Math.abs(Angle);
+						}else{
+							document.getElementById("Code").innerHTML += "" + Math.abs(Angle);
+						}
+						document.getElementById("Code").innerHTML += " Q050 R" + Settings.Leave + "<br>G76 X" + Convert2Gcode(Thread.InitX - (2 * H)) + " Z" + Convert2Gcode(Thread.InitZ - Length);
+						if(Taper != 0){
+						document.getElementById("Code").innerHTML += " R" + Convert2Gcode(-Math.tan(Taper * deg2rad) * Length);
+						}
+						document.getElementById("Code").innerHTML += " P" + Math.round(H * 1000) + " Q" + Math.round(H / Math.sqrt(Settings.Times) * 1000) + " F" + Convert2Gcode(Num * Pitch) + "<br>";
+					}
+				} else {
+					document.getElementById("Code").innerHTML += "G0 X" + Convert2Gcode(Thread.InitX + Settings.SafetyX) + " Z" + Convert2Gcode(Thread.InitZ + Length) + "<br>";
+					var Cut = H / (Settings.Times / 2);
+					var CurrentX = Thread.InitX - (Cut * 2);
+					var i = 1;
+
+					for(var j = 0; j < Num; j++){
+						CurrentX = Thread.InitX - (Cut * 2);
+						while(CurrentX > Thread.InitX - (H * 2)) {
+							document.getElementById("Code").innerHTML += "<br>G32 X" + Convert2Gcode(CurrentX) + " F" + Convert2Gcode(Num * Pitch) + "<br>G32";
+							if(Taper != 0){
+							document.getElementById("Code").innerHTML += " X" + Convert2Gcode(CurrentX - (Math.tan(Taper * deg2rad) * Length / 2));
+							}
+							document.getElementById("Code").innerHTML += " Z" + Convert2Gcode(Thread.InitZ);
+							if(j > 0){
+								document.getElementById("Code").innerHTML += " Q" + Math.round((360 / Num) * j * 1000);
+							}
+							document.getElementById("Code").innerHTML += " F" + Convert2Gcode(Num * Pitch);
+							document.getElementById("Code").innerHTML += "<br>G0 X" + Convert2Gcode(Thread.InitX + Settings.SafetyX) + "<br>Z" + Convert2Gcode((Thread.InitZ + Length));
+							if(Cut * Math.sqrt(i) > Settings.Min){
+								CurrentX -= (Cut / Math.sqrt(i) * 2);
+							}else{
+								CurrentX -= Settings.Min * 2;
+							}
+							i++;
+						}
+						CurrentX = Thread.InitX - (H * 2);
+						document.getElementById("Code").innerHTML += "<br>G32 X" + Convert2Gcode(CurrentX) + " F" + Convert2Gcode(Num * Pitch) + "<br>G32";
+						if(Taper != 0){
+						document.getElementById("Code").innerHTML += " X" + Convert2Gcode(CurrentX - (Math.tan(Taper * deg2rad) * Length / 2));
+						}
+						document.getElementById("Code").innerHTML += " Z" + Convert2Gcode(Thread.InitZ);
+						if(j > 0){
+							document.getElementById("Code").innerHTML += " Q" + Math.round((360 / Num) * j * 1000);
+						}
+						document.getElementById("Code").innerHTML += " F" + Convert2Gcode(Num * Pitch);
+						document.getElementById("Code").innerHTML += "<br>G0 X" + Convert2Gcode(Thread.InitX + Settings.SafetyX) + "<br>Z" + Convert2Gcode((Thread.InitZ + Length));
+					}
+				}
+			}else{
+				var MajorD = Thread.InitX;
+				document.getElementById("MajorDiameter").innerHTML = "螺紋外徑 = " + MajorD;
+				console.log("MajorDiameter = " + MajorD + "\nOutD = " + Thread.InitX + "\nLength = "+Length);
+				var MajorD = Thread.InitX;
+				document.getElementById("MajorDiameter").innerHTML = "螺紋外徑 = " + MajorD;
+
+				var Feed = Pitch;
+				var H = 0.640327 * Pitch;
+
+				document.getElementById("Code").innerHTML = "程式:<br><br>";
+
+				if(Length > 0){
+					for (var i = 0; i < Num; i++) {
+						document.getElementById("Code").innerHTML += "G0 X" + Convert2Gcode(Thread.InitX + Settings.SafetyX) + " Z" + Convert2Gcode(Thread.InitZ + Settings.SafetyX + (i * Pitch)) + "<br>G76 P";
+						if(Finish < 10){
+						document.getElementById("Code").innerHTML += "0" + Finish;
+						}else{
+						document.getElementById("Code").innerHTML += "" + Finish;
+						}
+						if(Pullout < 10){
+						document.getElementById("Code").innerHTML += "0" + Pullout;
+						}else{
+						document.getElementById("Code").innerHTML += "" + Pullout;
+						}
+						if(Math.abs(Angle) < 10){
+							document.getElementById("Code").innerHTML += "0" + Math.abs(Angle);
+						}else{
+							document.getElementById("Code").innerHTML += "" + Math.abs(Angle);
+						}
+						document.getElementById("Code").innerHTML += " Q050 R" + Settings.Leave + "<br>G76 X" + Convert2Gcode(Thread.InitX + (2 * H)) + " Z" + Convert2Gcode(Thread.InitZ - Length);
+						if(Taper != 0){
+						document.getElementById("Code").innerHTML += " R" + Convert2Gcode(Math.tan(Taper * deg2rad) * Length);
+						}
+						document.getElementById("Code").innerHTML += " P" + Math.round(H * 1000) + " Q" + Math.round(H / Math.sqrt(Settings.Times) * 1000) + " F" + Convert2Gcode(Num * Pitch) + "<br>";
+					}
+				} else {
+					document.getElementById("Code").innerHTML += "G0 X" + Convert2Gcode(Thread.InitX + Settings.SafetyX) + " Z" + Convert2Gcode((Thread.InitZ + Length)) + "<br>";
+					var Cut = -(H / (Settings.Times / 2));
+					var CurrentX = Thread.InitX - (Cut * 2);
+					var i = 1;
+
+					for(var j = 0; j < Num; j++){
+						CurrentX = Thread.InitX - (Cut * 2);
+						while(CurrentX > Thread.InitX - (H * 2)) {
+							document.getElementById("Code").innerHTML += "<br>G32 X" + Convert2Gcode(CurrentX) + " F" + Convert2Gcode(Num * Pitch) + "<br>G32";
+							if(Taper != 0){
+							document.getElementById("Code").innerHTML += " X" + Convert2Gcode(CurrentX + (Math.tan(Taper * deg2rad) * Length / 2));
+							}
+							document.getElementById("Code").innerHTML += " Z" + Convert2Gcode(Thread.InitZ);
+							if(j > 0){
+								document.getElementById("Code").innerHTML += " Q" + Math.round((360 / Num) * j * 1000);
+							}
+							document.getElementById("Code").innerHTML += " F" + Convert2Gcode(Num * Pitch);
+							document.getElementById("Code").innerHTML += "<br>G0 X" + Convert2Gcode(Thread.InitX + Settings.SafetyX) + "<br>Z" + Convert2Gcode((Thread.InitZ + Length));
+							if(Cut * Math.sqrt(i) > Settings.Min){
+								CurrentX -= (Cut / Math.sqrt(i) * 2);
+							}else{
+								CurrentX -= Settings.Min * 2;
+							}
+							i++;
+						}
+						CurrentX = Thread.InitX - (H * 2);
+						document.getElementById("Code").innerHTML += "<br>G32 X" + Convert2Gcode(CurrentX) + " F" + Convert2Gcode(Num * Pitch) + "<br>G32";
+						if(Taper != 0){
+						document.getElementById("Code").innerHTML += " X" + Convert2Gcode(CurrentX + (Math.tan(Taper * deg2rad) * Length / 2));
+						}
+						document.getElementById("Code").innerHTML += " Z" + Convert2Gcode(Thread.InitZ);
+						if(j > 0){
+							document.getElementById("Code").innerHTML += " Q" + Math.round((360 / Num) * j * 1000);
+						}
+						document.getElementById("Code").innerHTML += " F" + Convert2Gcode(Num * Pitch);
+						document.getElementById("Code").innerHTML += "<br>G0 X" + Convert2Gcode(Thread.InitX + Settings.SafetyX) + "<br>Z" + Convert2Gcode((Thread.InitZ + Length));
+					}
+				}
+			}
+		}
+		function ToggleIn(){
+			Thread.Internal = true;
+			document.getElementById("OutToggleIn").style.display = "none";
+			document.getElementById("InToggleOut").style.display = "block";
+		}
+		function ToggleOut(){
+			Thread.Internal = false;
+			document.getElementById("OutToggleIn").style.display = "block";
+			document.getElementById("InToggleOut").style.display = "none";
+		}
+		function SetThreadPitch(){
+			var Pitch = parseFloat(prompt("螺距 (mm, e.g. 30):",Thread.Pitch));
+			while(isNaN(Pitch)){
+				Pitch = parseFloat(prompt("螺距須為數字:",Thread.Pitch));
+			}
+			if(Pitch != null){
+				Thread.Pitch = Pitch;
+				document.getElementById("NewThreadPitch").innerHTML = "螺距 = " + Thread.Pitch + "mm";
+			}
+		}
+		function SetThreadNum(){
+			var Num = parseFloat(prompt("Number of Threads (整數, e.g. 1):",Thread.Num));
+			while(isNaN(Num)){
+			Num = parseFloat(prompt("Threads須為數字:",Thread.Num));
+			}
+			if(Num != null){
+			Thread.Num = Num;
+			document.getElementById("NewThreadNum").innerHTML = "Threads = " + Thread.Num + "N";
+			}
+		}
+		function SetThreadAngle(){
+			var Angle = parseFloat(prompt("角度 (角度, e.g. 60):",Thread.Angle));
+			while(isNaN(Angle)){
+			Angle = parseFloat(prompt("角度須為數字:",Thread.Angle));
+			}
+			if(Angle != null){
+			Thread.Angle = Angle;
+			document.getElementById("NewThreadAngle").innerHTML = "角度 = " + Thread.Angle + "°";
+			}
+		}
+		function SetThreadLength(){
+			var Length = parseFloat(prompt("長度 (mm, e.g. 60):",Thread.Length));
+			while(isNaN(Length)){
+			Length = parseFloat(prompt("長度須為數字:",Thread.Length));
+			}
+			if(Length != null){
+			Thread.Length = Length;
+			document.getElementById("NewThreadLength").innerHTML = "長度 = " + Thread.Length + "mm";
+			}
+		}
+		function SetThreadTaper(){
+			var Taper = parseFloat(prompt("錐度 (角度, e.g. 15):",Thread.Taper));
+			while(isNaN(Taper)){
+			Taper = parseFloat(prompt("錐度須為數字:",Thread.Taper));
+			}
+			if(Taper != null){
+			Thread.Taper = Taper;
+			document.getElementById("NewThreadTaper").innerHTML = "錐度 = " + Thread.Taper + "°";
+			}
+		}
+		function SetThreadFinish(){
+			var Finish = parseFloat(prompt("精修 (mm, e.g. 60):",Thread.Finish));
+			while(isNaN(Finish)){
+			Finish = parseFloat(prompt("精修須為數字:",Thread.Finish));
+			}
+			if(Finish != null){
+			Thread.Finish = Finish;
+			document.getElementById("NewThreadFinish").innerHTML = "精修 = " + Thread.Finish + " 次";
+			}
+		}
+		function SetThreadPullout(){
+			var Pullout = parseFloat(prompt("退刀距離 (倍率, e.g. 1.5):",Thread.Pullout));
+			while(isNaN(Pullout)){
+			Pullout = parseFloat(prompt("退刀距離須為數字:",Thread.Pullout));
+			}
+			if(Pullout != null){
+			Thread.Pullout = Pullout;
+			document.getElementById("NewThreadPullout").innerHTML = "退刀距離 = " + Thread.Pullout + " x 螺距";
+			}
+		}
+		function SetSettingsSafetyX(){
+			var safetyX = parseFloat(prompt("安全高度 (mm, e.g. 5).",Settings.SafetyX));
+			while(isNaN(safetyX)){
+			safetyX = parseFloat(prompt("Width須為數字:",Settings.SafetyX));
+			}
+			if(safetyX != null){
+			Settings.SafetyX = safetyX;
+			document.getElementById("NewSettingsSafetyX").innerHTML = "安全高度 = " + Settings.SafetyX + "mm";
+			}
+		}
+		function SetSettingsLeave(){
+			var leave = parseFloat(prompt("精修之預留量 (mm, e.g. 0.05).",Settings.Leave));
+			while(isNaN(leave)){
+			leave = parseFloat(prompt("預留量須為數字:",Settings.Leave));
+			}
+			if(leave != null){
+			Settings.Leave = leave;
+			document.getElementById("NewSettingsLeave").innerHTML = "預留量 = " + Settings.Leave + "mm";
+			}
+		}
+		function SetSettingsTimes(){
+			var Times = parseFloat(prompt("切削次數 (整數, e.g. 10).",Settings.Times));
+			while(isNaN(Times)){
+			Times = parseFloat(prompt("切削次數須為數字:",Settings.Times));
+			}
+			if(Times != null){
+			Settings.Times = Times;
+			document.getElementById("NewSettingsTimes").innerHTML = "切削次數 = " + Settings.Times + " 次";
+			}
+		}
+		function SetSettingsSpeed(){
+			var Speed = parseFloat(prompt("切削速度 (m/min e.g. 130).",Settings.Speed));
+			while(isNaN(Speed)){
+			Speed = parseFloat(prompt("Speed須為數字:",Settings.Speed));
+			}
+			if(Speed != null){
+			Settings.Speed = Speed;
+			document.getElementById("NewSettingsSpeed").innerHTML = "切削速度 = " + Settings.Speed + "m/min";
+			}
+		}
+		function SetInitPos(){
+			var initX = parseFloat(prompt("螺紋外徑:",Thread.InitX));
+			while(isNaN(initX) || initX <= 0){
+			initX = parseFloat(prompt("外徑須為數字:",Thread.InitX));
+			}
+			var initZ = parseFloat(prompt("螺紋Z座標:",Thread.InitZ));
+			while(isNaN(initZ)){
+			initZ = parseFloat(prompt("座標須為數字:",Thread.InitZ));
+			}
+			if(initX != null){
+			Thread.InitX = initX;
+			}
+			if(initZ != null){
+			Thread.InitZ = initZ;
+			}
+			document.getElementById("NewInitPos").innerHTML = "螺紋座標 = M" + Thread.InitX + " Z" + Thread.InitZ;
+		}
+		function Convert2Gcode(rawNum){
+			if(rawNum % 1 == 0){
+				return (rawNum + ".");
+			}else{
+				return (Math.floor(rawNum * 1000) / 1000).toString();
+			}
+		}
+	</script>
+	</body>
+</html>
