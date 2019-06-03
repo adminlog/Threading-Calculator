@@ -69,7 +69,7 @@ SOFTWARE.
 		<br><br>
 		<button onclick="SetThreadTaper()" id="NewThreadTaper">錐度 = 0°</button>
 		<br><br>
-		<button onclick="SetThreadNum()" id="NewThreadNum">Threads = 1N</button>
+		<button onclick="SetThreadNum()" id="NewThreadNum">螺牙之數量 = 1N</button>
 		<br><br>
 		<button onclick="SetThreadFinish()" id="NewThreadFinish">精修 = 1 次</button>
 		<br><br>
@@ -313,13 +313,13 @@ SOFTWARE.
 			}
 		}
 		function SetThreadNum(){
-			var Num = parseFloat(prompt("Number of Threads (整數, e.g. 1):",Thread.Num));
+			var Num = parseFloat(prompt("螺牙之數量 (整數, e.g. 1):",Thread.Num));
 			while(isNaN(Num)){
-			Num = parseFloat(prompt("Threads須為數字:",Thread.Num));
+			Num = parseFloat(prompt("數量須為數字:",Thread.Num));
 			}
 			if(Num != null){
 			Thread.Num = Num;
-			document.getElementById("NewThreadNum").innerHTML = "Threads = " + Thread.Num + "N";
+			document.getElementById("NewThreadNum").innerHTML = "螺牙之數量 = " + Thread.Num + "N";
 			}
 		}
 		function SetThreadAngle(){
