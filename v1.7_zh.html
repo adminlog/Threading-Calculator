@@ -140,6 +140,8 @@ SOFTWARE.
 			console.log("---------- Calculate() ----------");
 
 			document.getElementById("Code").style.color = "black";
+			document.getElementById("Code").innerHTML = "";
+
 
 			if(!Thread.Internal){
 				var MajorD = Thread.InitX;
@@ -222,8 +224,6 @@ SOFTWARE.
 
 				var Feed = Pitch;
 				var H = 0.640327 * Pitch;
-
-				document.getElementById("Code").innerHTML = "Code:<br><br>";
 
 				if(Length > 0){
 					document.getElementById("Code").innerHTML += "G0 X" + Convert2Gcode(Thread.InitX + Settings.SafetyX) + " Z" + Convert2Gcode(Thread.InitZ + Length) + "<br>";
